@@ -23,7 +23,7 @@ class IndexHandler(web.RequestHandler):
             if isinstance(playback,pykka.ActorProxy):
                translated = playback.translate_uri(uri).get()
                if translated != None:
-                  logger.error(translated)
+                  logger.debug(translated)
                   client = httpclient.AsyncHTTPClient()
                   requests = [
                      httpclient.HTTPRequest(url=translated,streaming_callback=self.on_chunk)
