@@ -1,6 +1,8 @@
 ## Mopidy-Master
 
-Simple [Mopidy](https://mopidy.com) extension for streaming music to satellite servers
+Simple [Mopidy](https://mopidy.com) extension for streaming music to satellite server. 
+
+See [Mopidy-Mopidy](https://github.com/stffart/mopidy-mopidy)
 
 ### Installation
 
