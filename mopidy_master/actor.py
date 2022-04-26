@@ -3,6 +3,7 @@ import pykka
 
 from mopidy import exceptions, listener, zeroconf
 from mopidy.core import CoreListener
+from mopidy.audio import PlaybackState
 from mopidy_mpd import network, session, uri_mapper
 from .devicemanager import DeviceManager
 
@@ -15,7 +16,7 @@ class MasterFrontend(pykka.ThreadingActor, CoreListener):
         self.core = core
         self.devicemanager = DeviceManager()
         mst_config = config['master']
-        self.devicemanager.configure(mst_config['name'],mst_config['ip'],mst_config['frontend'])
+        self.devicemanager.configure(core,mst_config['name'],mst_config['ip'],mst_config['frontend'])
         self._name = mst_config['name']
 
     def on_event(self, event, **kwargs):
