@@ -17,5 +17,11 @@ pip install mopidy-master
 ```
 [master]
 enabled = true
+#server name
+name = master
+#server listening ip-address 
+ip =
+#main frontend app
+frontend = musicbox_darkclient
 ```
 
