@@ -71,6 +71,7 @@ class MasterApiHandler(web.RequestHandler):
         self.finish()
 
     def get(self, path):
+      logger.debug(path)
       if path == 'list':
         self.write(json.dumps(self._devicemanager.get_devices()))
       else:
@@ -121,6 +122,7 @@ class MasterApiWebSocketHandler(websocket.WebSocketHandler):
         Message received on channel
         """
         self.loop = asyncio.get_event_loop()
+        logger.debug(message)
         try:
           data = json.loads(message)
         except:
@@ -128,7 +130,6 @@ class MasterApiWebSocketHandler(websocket.WebSocketHandler):
           return
         if data['message'] == 'list':
           response = { 'msg': 'devices', 'devices' : self._devicemanager.get_devices(), 'track_position':0 }
-          logger.debug(response)
           self.write_message(json.dumps(response))
         if data['message'] == 'activate':
           self._devicemanager.set_active(data['name'])

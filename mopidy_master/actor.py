@@ -22,7 +22,11 @@ class MasterFrontend(pykka.ThreadingActor, CoreListener):
     def on_event(self, event, **kwargs):
          if event == 'track_playback_started':
            self.devicemanager.set_active(self._name)
-         logger.error(event)
+         if event == 'playback_state_changed':
+           logger.error(kwargs)
+           if kwargs['old_state'] != kwargs['new_state']:
+             self.devicemanager.check_playback_state()
+         logger.error('mopidy event:' + event)
 #        if event not in _CORE_EVENTS_TO_IDLE_SUBSYSTEMS:
 #            logger.warning(
 #                "Got unexpected event: %s(%s)", event, ", ".join(kwargs)

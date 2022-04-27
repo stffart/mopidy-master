@@ -15,6 +15,7 @@ class DeviceSync():
         self._core = core
         self.ws_url = ws_url
         self._stop = False
+        self.playback_state_future = None
         self._mopidy_ws_opened = False
         self.loop = asyncio.new_event_loop()
         self.loop.set_exception_handler(self.handle_exception)
@@ -41,7 +42,7 @@ class DeviceSync():
       self._stop = True
       if hasattr(self,'mopidy_ws'):
         self.loop.call_soon_threadsafe(self.mopidy_ws.close)
-      logger.error("stopped sync")
+      logger.debug("stopped sync")
 
     def uri_to_master(self, uri):
         params = uri.split(':')
@@ -86,12 +87,12 @@ class DeviceSync():
           else:
             data = json.loads(msg)
             if 'event' in data:
-              logger.debug(data['event'])
               if data['event'] == 'tracklist_changed':
                 self.get_master_tracklist()
               elif data['event'] == 'track_playback_started':
                 track_uri = self.uri_to_master(data['tl_track']['track']['uri'])
                 self.set_current_track(track_uri)
+                self.get_playback_state()
               elif data['event'] == 'playback_state_changed':
                 self._core.playback.set_state(data['new_state'])
             else:
@@ -110,10 +111,28 @@ class DeviceSync():
               elif data['id'] == 103: #playbackstate
                 if data['result'] != None:
                   self._core.playback.set_state(data['result'])
+                  if self.playback_state_future != None:
+                     self.playback_state_future.set_result(data['result'])
+                     self.playback_state_future = None
               elif data['id'] == 104: #timeposition
                 if data['result'] != None:
                   self._time_position = data['result']
                   self.time_position_future.set_result(self._time_position)
+
+    def get_remote_playback_state(self):
+      self.playback_state_future = concurrent.futures.Future()
+      self.loop.call_soon_threadsafe(self.wait_playback_state)
+      return self.playback_state_future
+
+    def wait_playback_state(self):
+      logger.debug("wait_playback_state")
+      payload = {
+         "method": "core.playback.get_state",
+         "jsonrpc": "2.0",
+         "params":{},
+         "id": 103
+      }
+      self.mopidy_ws.write_message(json.dumps(payload))
 
     def get_track_position(self):
       self.time_position_future = concurrent.futures.Future()
@@ -129,7 +148,6 @@ class DeviceSync():
       }
       self._time_position = None
       self.mopidy_ws.write_message(json.dumps(payload))
-      logger.debug("wait_track_position sended")
 
 
     def set_current_track(self, uri):

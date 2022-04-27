@@ -59,6 +59,15 @@ class DeviceManager(metaclass=MetaSingleton):
       if changed:
         self.subscribers_event()
 
+    def check_playback_state(self):
+      if self.device_sync != None:
+        return self.device_sync.get_remote_playback_state()
+      else:
+        future = concurrent.futures.Future()
+        state = self._core.playback.get_state().get()
+        future.set_result(state)
+        return future
+
     def start_replication(self,ws_url):
       if self.device_sync != None:
         if self.device_sync.ws_url != ws_url:
@@ -83,10 +92,9 @@ class DeviceManager(metaclass=MetaSingleton):
         if was_any_active:
           track_position = self.device_sync.get_track_position().result()
           self._core.playback.seek(track_position)
-          logger.debug(track_position)
 
         self.stop_replication()
-        logger.error('replication stopped')
+        logger.debug('replication stopped')
         tl_track = self._core.playback.get_current_tl_track().get()
         state = self._core.playback.get_state().get()
         logger.debug("current playback state")
