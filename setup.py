@@ -5,7 +5,7 @@ this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text()
 setup(
     name='mopidy-master',
-    version='0.9',
+    version='1.0',
     description='Mopidy extension to translate music from different sources to satellites',
     description_file='README.md',
     long_description=long_description,

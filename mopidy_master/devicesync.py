@@ -27,7 +27,7 @@ class DeviceSync():
     def handle_exception(self, loop, context):
       # context["message"] will always be there; but context["exception"] may not
       logger.error(f"LOOP EXCEPTION")
-
+      logger.error(context)
       msg = context.get("exception", context["message"])
       logger.error(f"Caught exception: {msg}")
 
@@ -41,8 +41,15 @@ class DeviceSync():
     def stop(self):
       self._stop = True
       if hasattr(self,'mopidy_ws'):
-        self.loop.call_soon_threadsafe(self.mopidy_ws.close)
+        if self.mopidy_ws != None:
+          self.loop.call_soon_threadsafe(self.mopidy_ws.close)
       logger.debug("stopped sync")
+
+    def cancel_tasks(self):
+        logger.debug("get tasks")
+        for task in asyncio.all_tasks():
+           logger.error(task)
+        self.loop.stop()
 
     def uri_to_master(self, uri):
         params = uri.split(':')
@@ -54,6 +61,8 @@ class DeviceSync():
 
     @asyncio.coroutine
     def mopidy_connect(self):
+      retries = 0
+      max_retries = 1
       while not self._stop:
         logger.debug("mopidy connect")
         try:
@@ -61,6 +70,10 @@ class DeviceSync():
           logger.debug("connected to mopidy")
         except:
           logger.error("cannot connect to mopidy")
+          retries = retries + 1
+          if retries > max_retries:
+            logger.error("max retries exceeded, stop sync")
+            self.stop()
           if not self._stop:
             yield from asyncio.sleep(10)
         else:
@@ -83,6 +96,9 @@ class DeviceSync():
              if self._mopidy_ws_opened:
                self._mopidy_ws_opened = False
                logger.error('connection closed to mopidy')
+               self.cancel_futures()
+               self.mopidy_ws.close()
+               self.mopidy_ws = None
                return
           else:
             data = json.loads(msg)
@@ -119,6 +135,29 @@ class DeviceSync():
                   self._time_position = data['result']
                   self.time_position_future.set_result(self._time_position)
 
+    def cancel_futures(self):
+        if self.playback_state_future != None:
+          self.playback_state_future.set_result('STOPPED')
+          self.playback_state_future = None
+          logger.error("playback_state future cancelled")
+        if self.time_position_future != None:
+          self.time_position_future.set_result(0)
+          self.time_position_future = None
+          logger.error("time_position future cancelled")
+
+    def write_message(self, payload):
+      if self.mopidy_ws != None:
+        try:
+          self.mopidy_ws.write_message(json.dumps(payload))
+        except:
+          logger.error('Cannot send ws message')
+          logger.error(payload)
+          self.cancel_futures()
+      else:
+        logger.error('Cannot send ws message')
+        logger.error(payload)
+        self.cancel_futures()
+
     def get_remote_playback_state(self):
       self.playback_state_future = concurrent.futures.Future()
       self.loop.call_soon_threadsafe(self.wait_playback_state)
@@ -132,7 +171,6 @@ class DeviceSync():
          "params":{},
          "id": 103
       }
-      self.mopidy_ws.write_message(json.dumps(payload))
 
     def get_track_position(self):
       self.time_position_future = concurrent.futures.Future()
@@ -147,7 +185,7 @@ class DeviceSync():
          "id": 104
       }
       self._time_position = None
-      self.mopidy_ws.write_message(json.dumps(payload))
+      self.write_message(payload)
 
 
     def set_current_track(self, uri):
@@ -162,7 +200,7 @@ class DeviceSync():
          "jsonrpc": "2.0",
          "id": 101
       }
-      self.mopidy_ws.write_message(json.dumps(payload))
+      self.write_message(payload)
 
     def get_current_track(self):
       payload = {
@@ -171,7 +209,7 @@ class DeviceSync():
          "params":{},
          "id": 102
       }
-      self.mopidy_ws.write_message(json.dumps(payload))
+      self.write_message(payload)
 
     def get_playback_state(self):
       payload = {
@@ -180,7 +218,7 @@ class DeviceSync():
          "params":{},
          "id": 103
       }
-      self.mopidy_ws.write_message(json.dumps(payload))
+      self.write_message(payload)
 
 
     def remove_device(self, handler, remove_handler=False):

@@ -10,6 +10,7 @@ from .devicesync import DeviceSync
 
 logger = logging.getLogger(__name__)
 
+import signal, code, traceback
 
 class MetaSingleton(type):
     _instances = {}
@@ -24,7 +25,6 @@ class DeviceManager(metaclass=MetaSingleton):
         self._devices = dict()
         self._handlers = []
         self.device_sync = None
-        self.loop = asyncio.new_event_loop()
 
     def configure(self, core, name, ip, frontend):
         self._core = core
@@ -69,11 +69,14 @@ class DeviceManager(metaclass=MetaSingleton):
         return future
 
     def start_replication(self,ws_url):
+      logger.debug("start replication")
       if self.device_sync != None:
         if self.device_sync.ws_url != ws_url:
+          logger.debug("restart new")
           self.device_sync.stop()
           self.device_sync = DeviceSync(self._core, ws_url)
       else:
+          logger.debug("start new")
           self.device_sync = DeviceSync(self._core, ws_url)
 
     def stop_replication(self):
